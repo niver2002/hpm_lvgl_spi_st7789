@@ -1,0 +1,29 @@
+# Build directories
+build/
+output/
+*.elf
+*.bin
+*.hex
+*.map
+*.asm
+
+# IDE files
+.vscode/
+*.eww
+*.ewp
+*.ewd
+*.emProject
+*.jlink
+
+# Object files
+*.o
+*.obj
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*~
