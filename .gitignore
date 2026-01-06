@@ -1,6 +1,10 @@
 # Build directories
 build/
+build*/
+**/build*/
 output/
+output*/
+**/output*/
 *.elf
 *.bin
 *.hex

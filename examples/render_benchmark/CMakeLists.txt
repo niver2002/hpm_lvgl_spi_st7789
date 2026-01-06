@@ -3,7 +3,9 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-# Enable LVGL with custom porting (we provide a display driver + tick source)
+set(APP_VERSION_STRING "\"1.11.0\"")
+
+# Enable LVGL with custom porting
 set(CONFIG_LVGL 1)
 set(CONFIG_LVGL_CUSTOM_PORTABLE 1)
 set(STACK_SIZE 0x8000)
@@ -15,7 +17,7 @@ endif()
 
 find_package(hpm-sdk REQUIRED HINTS $ENV{HPM_SDK_BASE})
 
-project(tsn_dashboard_demo)
+project(render_benchmark_demo)
 
 # LVGL SPI display component (this repo)
 set(LVGL_SPI_DISPLAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src)

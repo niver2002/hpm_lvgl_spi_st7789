@@ -11,6 +11,10 @@
 #include "board.h"
 #include <string.h>
 
+#ifndef BOARD_RUNNING_CORE
+#define BOARD_RUNNING_CORE HPM_CORE0
+#endif
+
 /*============================================================================
  * Private data
  *============================================================================*/
@@ -69,6 +73,9 @@ static void st7789_delay_ms(uint32_t ms)
 static void st7789_spi_write_byte(uint8_t data)
 {
     SPI_Type *spi = st7789_ctx.cfg.spi_base;
+
+    /* Configure this transfer (1 byte) */
+    spi_set_write_data_count(spi, 1);
     
     /* Wait for TX FIFO not full */
     while (spi_get_tx_fifo_valid_data_size(spi) >= SPI_SOC_FIFO_DEPTH) {
@@ -76,8 +83,8 @@ static void st7789_spi_write_byte(uint8_t data)
     
     spi->DATA = data;
     
-    /* Wait for transfer complete */
-    while (!spi_is_active(spi)) {
+    /* Wait for transfer complete (avoid missing a short SPIACTIVE pulse) */
+    while (spi_get_tx_fifo_valid_data_size(spi) != 0U) {
     }
     while (spi_is_active(spi)) {
     }
@@ -86,6 +93,13 @@ static void st7789_spi_write_byte(uint8_t data)
 static void st7789_spi_write_data(const uint8_t *data, uint32_t len)
 {
     SPI_Type *spi = st7789_ctx.cfg.spi_base;
+
+    if ((data == NULL) || (len == 0U)) {
+        return;
+    }
+
+    /* Configure this transfer (len bytes, SPI data length is 8-bit) */
+    spi_set_write_data_count(spi, len);
     
     for (uint32_t i = 0; i < len; i++) {
         while (spi_get_tx_fifo_valid_data_size(spi) >= SPI_SOC_FIFO_DEPTH) {
@@ -94,7 +108,7 @@ static void st7789_spi_write_data(const uint8_t *data, uint32_t len)
     }
     
     /* Wait for all data sent */
-    while (!spi_is_active(spi)) {
+    while (spi_get_tx_fifo_valid_data_size(spi) != 0U) {
     }
     while (spi_is_active(spi)) {
     }
@@ -298,7 +312,10 @@ static hpm_stat_t st7789_spi_init(void)
     control.common_config.data_phase_fmt = spi_single_io_mode;
     control.common_config.dummy_cnt = spi_dummy_count_1;
     
-    spi_control_init(spi, &control, 0, 0);
+    /* Use minimal non-zero counts; actual counts are set per transfer */
+    if (spi_control_init(spi, &control, 1, 1) != status_success) {
+        return status_fail;
+    }
     
     return status_success;
 }
@@ -311,13 +328,19 @@ static void st7789_dma_init(void)
     DMA_Type *dma = st7789_ctx.cfg.dma_base;
     DMAMUX_Type *dmamux = st7789_ctx.cfg.dmamux_base;
     uint8_t ch = st7789_ctx.cfg.dma_channel;
+    uint8_t mux_ch = st7789_ctx.cfg.dma_mux_channel;
+
+#ifdef DMA_SOC_CHN_TO_DMAMUX_CHN
+    /* Avoid mismatch between DMA channel and DMAMUX channel */
+    mux_ch = (uint8_t)DMA_SOC_CHN_TO_DMAMUX_CHN(dma, ch);
+#endif
     
     /* Configure DMAMUX */
-    dmamux_config(dmamux, st7789_ctx.cfg.dma_mux_channel, 
-                  st7789_ctx.cfg.dma_src_request, true);
-    
-    /* Reset DMA channel */
-    dma_reset(dma);
+    dmamux_config(dmamux, mux_ch, st7789_ctx.cfg.dma_src_request, true);
+
+    /* Ensure channel is idle and status is clean */
+    dma_disable_channel(dma, ch);
+    dma_clear_transfer_status(dma, ch);
     
     /* Enable DMA channel interrupt - use TERMINAL_COUNT for DMAv2 */
     dma_enable_channel_interrupt(dma, ch, DMA_INTERRUPT_MASK_TERMINAL_COUNT);
@@ -438,6 +461,10 @@ hpm_stat_t st7789_write_pixels_dma(const void *data, uint32_t byte_len,
     SPI_Type *spi = st7789_ctx.cfg.spi_base;
     uint8_t ch = st7789_ctx.cfg.dma_channel;
     dma_channel_config_t dma_cfg = {0};
+
+    if ((data == NULL) || (byte_len == 0U)) {
+        return status_invalid_argument;
+    }
     
     /* Flush cache for DMA source buffer */
     if (l1c_dc_is_enabled()) {
@@ -451,14 +478,17 @@ hpm_stat_t st7789_write_pixels_dma(const void *data, uint32_t byte_len,
     
     /* Set D/C to data mode */
     st7789_dc_data();
-    
+
+    /* Configure SPI transfer count (8-bit SPI, so count == bytes) */
+    spi_set_write_data_count(spi, byte_len);
+
     /* Enable SPI TX DMA */
     spi_enable_tx_dma(spi);
     
     /* Configure DMA transfer */
     dma_default_channel_config(dma, &dma_cfg);
-    dma_cfg.src_addr = (uint32_t)data;
-    dma_cfg.dst_addr = (uint32_t)&spi->DATA;
+    dma_cfg.src_addr = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)data);
+    dma_cfg.dst_addr = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)&spi->DATA);
     dma_cfg.src_width = DMA_TRANSFER_WIDTH_BYTE;
     dma_cfg.dst_width = DMA_TRANSFER_WIDTH_BYTE;
     dma_cfg.src_addr_ctrl = DMA_ADDRESS_CONTROL_INCREMENT;
@@ -567,24 +597,26 @@ void st7789_dma_irq_handler(void)
     SPI_Type *spi = st7789_ctx.cfg.spi_base;
     uint8_t ch = st7789_ctx.cfg.dma_channel;
     
-    /* Check if this channel's transfer is complete */
-    if (dma_check_transfer_status(dma, ch) == status_success) {
-        /* Clear interrupt */
-        dma_clear_transfer_status(dma, ch);
-        
-        /* Wait for SPI to finish */
+    uint32_t stat = dma_check_transfer_status(dma, ch);
+
+    /* Only handle terminal events; ignore ongoing/half-done */
+    if ((stat & (DMA_CHANNEL_STATUS_TC | DMA_CHANNEL_STATUS_ERROR | DMA_CHANNEL_STATUS_ABORT)) == 0U) {
+        return;
+    }
+
+    /* DMA TC only means FIFO writes are done; wait for SPI shifter to finish */
+    if ((stat & DMA_CHANNEL_STATUS_TC) != 0U) {
         while (spi_is_active(spi)) {
         }
-        
-        /* Disable SPI TX DMA */
-        spi_disable_tx_dma(spi);
-        
-        /* Mark transfer complete */
-        st7789_ctx.dma_busy = false;
-        
-        /* Call user callback */
-        if (st7789_ctx.dma_callback) {
-            st7789_ctx.dma_callback(st7789_ctx.dma_user_data);
-        }
+    }
+
+    /* Stop DMA & mark idle */
+    dma_disable_channel(dma, ch);
+    spi_disable_tx_dma(spi);
+    st7789_ctx.dma_busy = false;
+
+    /* Always notify upper layer to avoid LVGL deadlock */
+    if (st7789_ctx.dma_callback) {
+        st7789_ctx.dma_callback(st7789_ctx.dma_user_data);
     }
 }

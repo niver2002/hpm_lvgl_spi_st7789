@@ -90,8 +90,11 @@ static struct {
     uint32_t last_fps_tick;
     uint32_t fps;
     
-    /* Current flush area */
-    lv_area_t flush_area;
+    /* Flush statistics */
+    volatile uint32_t flush_count;
+    volatile uint64_t flush_bytes;
+    volatile uint32_t last_flush_tick;
+    lv_area_t last_flush_area;
 } lvgl_ctx;
 
 /* Timer frequency */
@@ -158,8 +161,11 @@ static void lvgl_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
     uint32_t h = y2 - y1 + 1;
     uint32_t byte_len = w * h * HPM_LVGL_PIXEL_SIZE;
     
-    /* Store flush area for reference */
-    lv_area_copy(&lvgl_ctx.flush_area, area);
+    /* Flush statistics */
+    lvgl_ctx.flush_count++;
+    lvgl_ctx.flush_bytes += byte_len;
+    lvgl_ctx.last_flush_tick = lvgl_tick_get_cb();
+    lv_area_copy(&lvgl_ctx.last_flush_area, area);
     
     /* Set display window */
     st7789_set_window(x1, y1, x2, y2);
@@ -319,4 +325,24 @@ uint32_t hpm_lvgl_spi_get_fps(void)
     }
     
     return lvgl_ctx.fps;
+}
+
+void hpm_lvgl_spi_reset_stats(void)
+{
+    lvgl_ctx.flush_count = 0;
+    lvgl_ctx.flush_bytes = 0;
+    lvgl_ctx.last_flush_tick = lvgl_tick_get_cb();
+    memset(&lvgl_ctx.last_flush_area, 0, sizeof(lvgl_ctx.last_flush_area));
+}
+
+void hpm_lvgl_spi_get_stats(hpm_lvgl_spi_stats_t *out)
+{
+    if (out == NULL) {
+        return;
+    }
+
+    out->flush_count = lvgl_ctx.flush_count;
+    out->flush_bytes = lvgl_ctx.flush_bytes;
+    out->last_flush_tick = lvgl_ctx.last_flush_tick;
+    lv_area_copy(&out->last_flush_area, &lvgl_ctx.last_flush_area);
 }

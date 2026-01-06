@@ -108,4 +108,26 @@ uint32_t hpm_lvgl_spi_get_fps(void);
  */
 void hpm_lvgl_spi_dma_irq_handler(void);
 
+/*============================================================================
+ * Performance statistics (optional)
+ *============================================================================*/
+
+typedef struct {
+    uint32_t flush_count;        /* Total flush calls since last reset */
+    uint64_t flush_bytes;        /* Total bytes requested to flush */
+    lv_area_t last_flush_area;   /* Last flushed area (LVGL coordinates) */
+    uint32_t last_flush_tick;    /* Tick (ms) when last flush started */
+} hpm_lvgl_spi_stats_t;
+
+/**
+ * @brief Reset flush statistics counters
+ */
+void hpm_lvgl_spi_reset_stats(void);
+
+/**
+ * @brief Get current flush statistics
+ * @param out Output stats (must not be NULL)
+ */
+void hpm_lvgl_spi_get_stats(hpm_lvgl_spi_stats_t *out);
+
 #endif /* HPM_LVGL_SPI_H */

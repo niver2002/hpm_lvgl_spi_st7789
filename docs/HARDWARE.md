@@ -1,42 +1,35 @@
 # Hardware Setup Guide
 
-This document describes how to connect ST7789/GC9307 SPI LCD displays to HPM6E00 series development boards.
+This document describes how to connect an ST7789/GC9307 SPI LCD module to HPMicro HPM6E00 series boards.
 
-## Display Module Requirements
+## Signals (4-wire SPI + control)
 
-### Supported Display ICs
-- **ST7789**: Most common, max 70MHz SPI
-- **GC9307**: Pin-compatible with ST7789, max 60MHz SPI, often cheaper
+Typical modules use:
 
-### Recommended Display Specs
-- Resolution: 172×320, 240×240, 240×320
-- Interface: 4-wire SPI (MOSI, SCLK, CS, D/C)
-- Voltage: 3.3V logic
-- Connector: FPC or header pins
+- `VCC` / `GND`
+- `SCLK` (SPI clock)
+- `MOSI` (SPI data)
+- `CS` (chip select)
+- `D/C` (data/command select)
+- `RST` (reset)
+- `BL` (backlight, sometimes named `LED`/`BLK`)
 
-### Common Display Modules
-- 1.47" 172×320 ST7789 (round corners, common in smartwatches)
-- 1.3" 240×240 ST7789 (square)
-- 2.0" 240×320 ST7789
-
-## HPM6E00 FULL_PORT Connection
-
-### SPI7 Pins (Default Configuration)
+## Example Wiring: HPM6E00 FULL_PORT (SPI7)
 
 | LCD Pin | Function | HPM6E00 Pin | IOC Pad |
-|---------|----------|-------------|---------|
-| VCC | Power | 3.3V | - |
+|--------:|----------|-------------|---------|
+| VCC | 3.3V | 3.3V | - |
 | GND | Ground | GND | - |
-| SCL/SCLK | SPI Clock | PF26 | IOC_PAD_PF26 |
-| SDA/MOSI | SPI Data | PF29 | IOC_PAD_PF29 |
-| CS | Chip Select | PF27 | IOC_PAD_PF27 |
-| DC/RS | Data/Command | PF28 | IOC_PAD_PF28 |
+| SCLK | SPI clock | PF26 | IOC_PAD_PF26 |
+| MOSI | SPI data | PF29 | IOC_PAD_PF29 |
+| CS | SPI CS0 | PF27 | IOC_PAD_PF27 |
+| D/C | Data/Command | PF28 | IOC_PAD_PF28 |
 | RST | Reset | PF30 | IOC_PAD_PF30 |
-| BL/LED | Backlight | PF25 | IOC_PAD_PF25 |
+| BL | Backlight | PF25 | IOC_PAD_PF25 |
 
-### Pin Initialization Code
+## Pinmux Example
 
-The board's `pinmux.c` should include:
+Your board pinmux should configure SPI and control GPIO pins, for example:
 
 ```c
 void init_lcd_pins(void)
@@ -47,152 +40,50 @@ void init_lcd_pins(void)
     HPM_IOC->PAD[IOC_PAD_PF29].FUNC_CTL = IOC_PF29_FUNC_CTL_SPI7_MOSI;
 
     /* LCD control pins as GPIO */
-    HPM_IOC->PAD[IOC_PAD_PF25].PAD_CTL = IOC_PAD_PAD_CTL_PE_SET(1) | IOC_PAD_PAD_CTL_PS_SET(1);
     HPM_IOC->PAD[IOC_PAD_PF25].FUNC_CTL = IOC_PF25_FUNC_CTL_GPIO_F_25;  /* BL */
-    
-    HPM_IOC->PAD[IOC_PAD_PF28].PAD_CTL = IOC_PAD_PAD_CTL_PE_SET(1) | IOC_PAD_PAD_CTL_PS_SET(1);
     HPM_IOC->PAD[IOC_PAD_PF28].FUNC_CTL = IOC_PF28_FUNC_CTL_GPIO_F_28;  /* D/C */
-    
-    HPM_IOC->PAD[IOC_PAD_PF30].PAD_CTL = IOC_PAD_PAD_CTL_PE_SET(1) | IOC_PAD_PAD_CTL_PS_SET(1);
     HPM_IOC->PAD[IOC_PAD_PF30].FUNC_CTL = IOC_PF30_FUNC_CTL_GPIO_F_30;  /* RST */
 }
 ```
 
-### GPIO Initialization in board.c
+## GPIO Init Example (board.c)
 
 ```c
 void board_init_lcd(void)
 {
     init_lcd_pins();
-    
-    /* Backlight - active high (check your display!) */
+
+    /* Backlight (active high on most modules) */
     gpio_set_pin_output_with_initial(HPM_GPIO0, GPIO_DO_GPIOF, 25, true);
-    
-    /* D/C pin */
+
+    /* D/C */
     gpio_set_pin_output_with_initial(HPM_GPIO0, GPIO_DO_GPIOF, 28, false);
-    
-    /* Reset pin */
+
+    /* Reset */
     gpio_set_pin_output_with_initial(HPM_GPIO0, GPIO_DO_GPIOF, 30, false);
 }
 ```
 
-## Wiring Diagram
+## Display Offset Notes
 
-```
-HPM6E00 FULL_PORT                    ST7789 Display
-    ┌────────────┐                   ┌────────────┐
-    │            │                   │            │
-    │     PF26 ──┼───── SCLK ────────┼── SCL      │
-    │     PF29 ──┼───── MOSI ────────┼── SDA      │
-    │     PF27 ──┼───── CS ──────────┼── CS       │
-    │     PF28 ──┼───── DC ──────────┼── DC/RS    │
-    │     PF30 ──┼───── RST ─────────┼── RES      │
-    │     PF25 ──┼───── BL ──────────┼── BLK      │
-    │            │                   │            │
-    │     3.3V ──┼───────────────────┼── VCC      │
-    │     GND ───┼───────────────────┼── GND      │
-    │            │                   │            │
-    └────────────┘                   └────────────┘
-```
+Different LCD modules may require different RAM offsets:
 
-## Display Offset Configuration
+- 172x320 (1.47"): `x_offset = 34`, `y_offset = 0` is common
+- 240x320 (2.0"): `x_offset = 0`, `y_offset = 0`
+- 240x240 (1.3"): `x_offset = 0`, `y_offset = 80` (or 0, depends on module)
 
-Different display modules may require different memory offset values:
+## Troubleshooting Checklist
 
-### 172×320 Display (1.47")
-```c
-#define ST7789_X_OFFSET  34
-#define ST7789_Y_OFFSET  0
-```
+No display output:
 
-### 240×320 Display (2.0")
-```c
-#define ST7789_X_OFFSET  0
-#define ST7789_Y_OFFSET  0
-```
+- Check `VCC/GND`
+- Verify reset sequence and `RST` wiring
+- Verify `D/C` wiring
+- Check SPI signals with a scope or logic analyzer
+- Reduce SPI clock (e.g. 20 MHz) if you use long wires
 
-### 240×240 Display (1.3")
-```c
-#define ST7789_X_OFFSET  0
-#define ST7789_Y_OFFSET  80  /* Or 0, depending on module */
-```
+Wrong colors:
 
-## Backlight Control
+- Try toggling inversion (`invert_colors` / `st7789_invert(true/false)`)
+- Confirm color order setting (RGB/BGR)
 
-### Active High Backlight (Most Common)
-```c
-void st7789_backlight(bool on)
-{
-    gpio_write_pin(gpio_base, bl_index, bl_pin, on ? 1 : 0);
-}
-```
-
-### Active Low Backlight
-```c
-void st7789_backlight(bool on)
-{
-    gpio_write_pin(gpio_base, bl_index, bl_pin, on ? 0 : 1);
-}
-```
-
-### PWM Brightness Control (Optional)
-For brightness control, connect BL to a PWM-capable pin and use:
-```c
-/* Example using GPTMR PWM */
-void st7789_set_brightness(uint8_t percent)
-{
-    uint32_t duty = (percent * PWM_RELOAD) / 100;
-    gptmr_update_cmp_value(HPM_GPTMR0, 0, 0, duty);
-}
-```
-
-## Power Considerations
-
-### Current Requirements
-- Display: ~20-50mA (varies with content)
-- Backlight: ~20-100mA (depends on LED count)
-- Total: ~50-150mA from 3.3V
-
-### Decoupling
-- Add 100nF ceramic capacitor near VCC pin
-- Add 10µF electrolytic for bulk decoupling
-
-## Troubleshooting
-
-### No Display Output
-1. Check power connections (VCC, GND)
-2. Verify reset sequence timing
-3. Check D/C pin connection
-4. Measure SPI signals with oscilloscope
-
-### Wrong Colors
-1. Check color inversion setting: `st7789_invert(true/false)`
-2. Verify MADCTL (0x36) register settings
-3. Check if display is RGB or BGR
-
-### Flickering
-1. Ensure stable power supply
-2. Check SPI signal integrity
-3. Reduce SPI clock if using long wires
-
-### Partial Display
-1. Verify X/Y offset values
-2. Check CASET/RASET commands
-3. Ensure window size matches display resolution
-
-## Alternative SPI Ports
-
-If SPI7 is not available, the driver can be adapted to other SPI ports:
-
-| SPI Port | SCLK | MOSI | CS |
-|----------|------|------|-----|
-| SPI0 | PA03 | PA05 | PA04 |
-| SPI1 | PB03 | PB05 | PB04 |
-| SPI2 | PC03 | PC05 | PC04 |
-| ... | ... | ... | ... |
-
-Update `board.h` accordingly:
-```c
-#define BOARD_LCD_SPI           HPM_SPI0
-#define BOARD_LCD_SPI_CLK_NAME  clock_spi0
-```

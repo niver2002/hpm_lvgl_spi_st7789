@@ -17,6 +17,10 @@
 #include "hpm_clock_drv.h"
 #include "hpm_lvgl_spi.h"
 
+/* Some boards may not provide these helpers. Provide weak defaults so the demo can build. */
+ATTR_WEAK void board_init_key(void) {}
+ATTR_WEAK void board_init_lcd(void) {}
+
 /*============================================================================
  * Configuration
  *============================================================================*/
@@ -82,8 +86,18 @@ static uint32_t key_debounce[4] = {0};
 
 #define DEBOUNCE_MS 50
 
+#if defined(BOARD_KEYA_GPIO_CTRL) && defined(BOARD_KEYA_GPIO_INDEX) && defined(BOARD_KEYA_GPIO_PIN) && \
+    defined(BOARD_KEYB_GPIO_CTRL) && defined(BOARD_KEYB_GPIO_INDEX) && defined(BOARD_KEYB_GPIO_PIN) && \
+    defined(BOARD_KEYC_GPIO_CTRL) && defined(BOARD_KEYC_GPIO_INDEX) && defined(BOARD_KEYC_GPIO_PIN) && \
+    defined(BOARD_KEYD_GPIO_CTRL) && defined(BOARD_KEYD_GPIO_INDEX) && defined(BOARD_KEYD_GPIO_PIN)
+#define DEMO_HAS_KEYS 1
+#else
+#define DEMO_HAS_KEYS 0
+#endif
+
 static bool is_key_pressed(uint8_t key_idx)
 {
+#if DEMO_HAS_KEYS
     bool pressed = false;
     GPIO_Type *gpio = NULL;
     uint32_t index = 0;
@@ -116,6 +130,10 @@ static bool is_key_pressed(uint8_t key_idx)
     
     pressed = (gpio_read_pin(gpio, index, pin) == 0);
     return pressed;
+#else
+    (void)key_idx;
+    return false;
+#endif
 }
 
 static bool key_just_pressed(uint8_t key_idx)
