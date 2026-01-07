@@ -40,6 +40,14 @@ Enable LVGL drivers via extra config:
 sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG="lv_conf_ext.h")
 ```
 
+Ensure RGB565 byte order matches ST7789 SPI (MSB first on the wire):
+
+```c
+#define LV_COLOR_16_SWAP 1
+```
+
+This repo’s `src/lv_conf_ext.h` enables it by default.
+
 ## How it works (implementation notes)
 
 In `src/hpm_lvgl_spi.c` when `USE_DMA_MGR=1`:
@@ -72,4 +80,3 @@ If you want to manually control CS (recommended when sharing the SPI bus), defin
 ```
 
 If you use SPI hardware CS or tie CS low, you can omit these macros.
-

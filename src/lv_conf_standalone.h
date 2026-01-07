@@ -1,11 +1,11 @@
 /**
- * @file lv_conf.h
+ * @file lv_conf_standalone.h
  * Configuration file for LVGL v9.x
  * HPM6E00 FULL_PORT - ST7789/GC9307 SPI Display
  */
 
-#ifndef LV_CONF_H
-#define LV_CONF_H
+#ifndef LV_CONF_STANDALONE_H
+#define LV_CONF_STANDALONE_H
 
 #include <stdint.h>
 
@@ -15,6 +15,10 @@
 
 /* Color depth: 16 (RGB565) for ST7789 */
 #define LV_COLOR_DEPTH 16
+
+/* ST7789 expects RGB565 bytes to be sent MSB first on the SPI bus.
+ * Enable RGB565 byte swap before flush to match the panel (LVGL runs little-endian). */
+#define LV_COLOR_16_SWAP 1
 
 /*=========================
    MEMORY SETTINGS
@@ -221,4 +225,4 @@
 #define LV_USE_DEMO_STRESS 0
 #define LV_USE_DEMO_MUSIC 0
 
-#endif /*LV_CONF_H*/
+#endif /* LV_CONF_STANDALONE_H */

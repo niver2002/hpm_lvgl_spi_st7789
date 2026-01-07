@@ -119,6 +119,14 @@ set(CONFIG_DMA_MGR 1)
 sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG="lv_conf_ext.h")
 ```
 
+同时务必保证 **RGB565 像素字节序**正确（ST7789 SPI 下通常要求 RGB565 高字节先传）。最推荐的方式是在 LVGL 配置里开启：
+
+```c
+#define LV_COLOR_16_SWAP 1
+```
+
+本仓库的 `src/lv_conf_ext.h` 已默认开启（配合 HPM SDK 的 `CONFIG_LV_HAS_EXTRA_CONFIG` 使用）。如果你用自己的 `lv_conf.h`，也请确保同样开启，否则最典型的现象是“颜色完全不对”（不是简单的 RGB/BGR 颠倒）。
+
 > 本仓库的 `src/lv_conf_ext.h` 专门为 HPM SDK 的 `CONFIG_LV_HAS_EXTRA_CONFIG` 设计（不会踩 `LV_CONF_H` include-guard）。
 
 ### 5) DMA IRQ / ISR（非常关键）
@@ -171,6 +179,10 @@ DMA 从内存读像素数据：如果源 buffer 在 cacheable RAM：
 2. 线短/阻抗好再提升到 `40MHz`（本仓库默认）
 3. 若出现偶发花屏：先降频，再检查线长、地、IO 驱动强度、屏模块供电
 
+补充：
+
+- 如果你用的是 `hpm_apps` 的 `hpm6e00_full_port`，其 `board.h` 里通常会定义 `BOARD_LCD_SPI_CLK_FREQ`（默认 20MHz）。本仓库的 `HPM_LVGL_SPI_FREQ` 会优先使用它，稳定后再手动提升到 40MHz/更高。
+
 ### 9) 屏参数：offset / invert / RGB-BGR / rotation
 
 172×320（常见 1.47"）面板往往需要：
@@ -203,7 +215,7 @@ DMA 从内存读像素数据：如果源 buffer 在 cacheable RAM：
 
 可选解决思路（按侵入性从低到高）：
 
-1. **确认 LVGL 的像素缓冲输出是否已经是 big-endian**（有些工程会在渲染或 flush 前做 swap）
+1. **推荐：开启 `LV_COLOR_16_SWAP=1`**（LVGL 会在调用 `flush_cb` 前对 `px_map` 做 RGB565 字节交换）
 2. 在驱动发送路径对像素做字节交换（代价是 CPU 时间）
 3. 像素阶段切换 SPI 为 16-bit 传输（命令仍用 8-bit），让 SPI 以 MSB-first 发送 16-bit word（更高效，但需要你确认 SPI 驱动支持快速切换）
 

@@ -1,43 +1,40 @@
 diff --git a/samples/lvgl/common/lvgl.c b/samples/lvgl/common/lvgl.c
-index 7b10f36..b1d90d5 100644
+index 265fc1732..0751636a9 100644
 --- a/samples/lvgl/common/lvgl.c
 +++ b/samples/lvgl/common/lvgl.c
-@@ -52,6 +52,8 @@ static void hpm_lvgl_add_logo(void)
+@@ -33,21 +33,27 @@ static void hpm_lvgl_add_logo(void)
      int screen_w;
      int logo_size;
      lv_obj_t *obj_logo;
-+    int pad_top;
 +    bool narrow;
++    int pad;
  
      screen = lv_screen_active();
      screen_h = lv_obj_get_height(screen);
-@@ -59,6 +61,8 @@ static void hpm_lvgl_add_logo(void)
+     screen_w = lv_obj_get_width(screen);
  
-     if (screen_h < screen_w)
-         logo_size = screen_h * 30 / 100;
+-    if (screen_h < screen_w)
 +    narrow = (screen_w < 240);
-+    pad_top = narrow ? 4 : 8;
-     else
++    pad = narrow ? 4 : 8;
++
++    if (screen_h < screen_w) {
+         logo_size = screen_h * 30 / 100;
+-    else
++    } else {
          logo_size = screen_w * 30 / 100;
++    }
  
-@@ -69,7 +73,7 @@ static void hpm_lvgl_add_logo(void)
+-    obj_logo = lv_image_create(lv_screen_active());
++    obj_logo = lv_image_create(screen);
  
      lv_obj_set_size(obj_logo, logo_size, logo_size);
      lv_image_set_src(obj_logo, &hpmlogo);
 -    lv_obj_set_align(obj_logo, LV_ALIGN_TOP_LEFT);
-+    lv_obj_set_align(obj_logo, narrow ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT);
++    lv_obj_align(obj_logo, narrow ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT, narrow ? 0 : pad, pad);
      lv_image_set_inner_align(obj_logo, LV_IMAGE_ALIGN_STRETCH);
  
      def_color = lv_obj_get_style_bg_color(screen, LV_PART_MAIN);
-@@ -77,6 +81,7 @@ static void hpm_lvgl_add_logo(void)
- }
- 
- static void btn_event_cb(lv_event_t *e)
-@@ -94,50 +99,63 @@ static void btn_event_cb(lv_event_t *e)
-     }
- }
- 
- static void hpm_lvgl_add_button(void)
+@@ -71,10 +77,13 @@ static void hpm_lvgl_add_button(void)
  {
      lv_obj_t *obj_button;
      lv_obj_t *obj_text;
@@ -47,15 +44,14 @@ index 7b10f36..b1d90d5 100644
 +    lv_obj_t *obj_menu;
      static lv_style_t style_btn;
 +    lv_obj_t *screen;
-+    int screen_w;
-+    int screen_h;
++    int32_t screen_w;
++    int32_t screen_h;
 +    bool narrow;
 +    uint32_t btn_h;
  
      lv_style_init(&style_btn);
      lv_style_set_bg_color(&style_btn, lv_color_hex(0x0));
-     lv_style_set_bg_opa(&style_btn, LV_OPA_TRANSP);
-     lv_style_set_border_width(&style_btn, 2);
+@@ -83,20 +92,41 @@ static void hpm_lvgl_add_button(void)
      lv_style_set_border_color(&style_btn, lv_color_hex(0xFFFFFF));
      lv_style_set_radius(&style_btn, LV_RADIUS_CIRCLE);
  
@@ -74,8 +70,9 @@ index 7b10f36..b1d90d5 100644
 +    obj_menu = lv_obj_create(screen);
 +    lv_obj_remove_style_all(obj_menu);
 +    lv_obj_set_layout(obj_menu, LV_LAYOUT_FLEX);
-+    lv_obj_set_size(obj_menu, lv_pct(100), lv_pct(60));
++    lv_obj_set_size(obj_menu, lv_pct(100), lv_pct(narrow ? 60 : 30));
 +    lv_obj_align(obj_menu, LV_ALIGN_BOTTOM_MID, 0, 0);
++
 +    if (narrow) {
 +        lv_obj_set_flex_flow(obj_menu, LV_FLEX_FLOW_COLUMN);
 +        lv_obj_set_flex_align(obj_menu, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -83,6 +80,7 @@ index 7b10f36..b1d90d5 100644
 +        lv_obj_set_flex_flow(obj_menu, LV_FLEX_FLOW_ROW_WRAP);
 +        lv_obj_set_flex_align(obj_menu, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 +    }
++
 +    lv_obj_set_style_pad_row(obj_menu, 8, 0);
 +    lv_obj_set_style_pad_column(obj_menu, 8, 0);
 +    lv_obj_set_style_pad_all(obj_menu, 8, 0);
@@ -104,15 +102,11 @@ index 7b10f36..b1d90d5 100644
  
          obj_text = lv_label_create(obj_button);
          lv_label_set_text(obj_text, demo_infos[i].name);
-         lv_obj_set_size(obj_text, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-         lv_obj_center(obj_text);
-     }
- }
 diff --git a/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c b/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
-index 0f6f6b0..b7e5b29 100644
+index bf6d1b3bb..ffb07dadf 100644
 --- a/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
 +++ b/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
-@@ -19,24 +19,43 @@
+@@ -15,19 +15,25 @@
  
  static void hpm_lvgl_mouse_keyboard_demo(lv_indev_t *indev)
  {
@@ -145,6 +139,3 @@ index 0f6f6b0..b7e5b29 100644
      /* Setup input group */
      lv_group_t *group = lv_group_create();
      lv_indev_set_group(indev, group);
-     lv_group_add_obj(group, ta);
- }
-

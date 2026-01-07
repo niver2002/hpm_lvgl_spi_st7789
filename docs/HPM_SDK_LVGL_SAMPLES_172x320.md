@@ -30,6 +30,12 @@ HPM SDK 的 `samples/lvgl` 默认偏向“较大分辨率”的屏（常见是 R
 git apply <path-to-this-repo>/patches/hpm_sdk_lvgl_ui_small_screen.patch
 ```
 
+如果你使用的是 `sdk_env` 这类将 `hpm_sdk` 放在子目录的布局，可以在 `sdk_env` 根目录执行：
+
+```bash
+git apply --directory=hpm_sdk <path-to-this-repo>/patches/hpm_sdk_lvgl_ui_small_screen.patch
+```
+
 如果 HPM SDK 版本更新导致冲突：
 
 - 先用 `git apply --reject --whitespace=fix ...` 让它生成 `.rej`
@@ -41,4 +47,3 @@ LVGL 的 `lv_st7789`/`lv_lcd_generic_mipi` 这里说的 “MIPI” 是 **MIPI DB
 不是 “MIPI DSI” 那种高速差分物理层接口。
 
 所以：即使 HPM6E 没有 MIPI DSI 外设，依然可以通过 **SPI（配合 DMA）** 正常驱动 ST7789。
-

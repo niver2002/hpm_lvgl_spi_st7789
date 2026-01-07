@@ -9,6 +9,7 @@
 #ifndef HPM_LVGL_SPI_H
 #define HPM_LVGL_SPI_H
 
+#include "hpm_common.h"
 #include "lvgl.h"
 
 /* If using the HPM SDK `components/spi` driver with DMA manager, the SDK will define `USE_DMA_MGR=1`.
@@ -32,7 +33,12 @@
 
 /* SPI configuration */
 #ifndef HPM_LVGL_SPI_FREQ
-#define HPM_LVGL_SPI_FREQ       (40000000UL)    /* 40MHz for stability */
+#ifdef BOARD_LCD_SPI_CLK_FREQ
+/* Prefer board default when available (e.g. hpm_apps boards define BOARD_LCD_SPI_CLK_FREQ). */
+#define HPM_LVGL_SPI_FREQ       BOARD_LCD_SPI_CLK_FREQ
+#else
+#define HPM_LVGL_SPI_FREQ       (40000000UL)    /* 40MHz is usually stable with short wires */
+#endif
 #endif
 
 /* Buffer configuration */
@@ -91,7 +97,11 @@
  * You can override this macro to match your linker script / toolchain.
  */
 #ifndef HPM_LVGL_FB_ATTR
+#if defined(ATTR_PLACE_AT_NONCACHEABLE_WITH_ALIGNMENT)
+#define HPM_LVGL_FB_ATTR ATTR_PLACE_AT_NONCACHEABLE_WITH_ALIGNMENT(64)
+#else
 #define HPM_LVGL_FB_ATTR __attribute__((aligned(64), section(".noncacheable")))
+#endif
 #endif
 
 /*============================================================================
@@ -138,9 +148,9 @@ void hpm_lvgl_spi_backlight(bool on);
 
 /**
  * @brief Set display rotation
- * @param rotation 0, 90, 180, or 270
+ * @param rotation 0, 90, 180, or 270 (degrees)
  */
-void hpm_lvgl_spi_set_rotation(uint8_t rotation);
+void hpm_lvgl_spi_set_rotation(uint16_t rotation);
 
 /**
  * @brief Get actual FPS (for debugging)

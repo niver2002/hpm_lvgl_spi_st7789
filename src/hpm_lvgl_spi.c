@@ -8,9 +8,11 @@
 #include "hpm_lvgl_spi.h"
 #include "board.h"
 #include "hpm_clock_drv.h"
+#include "hpm_gpio_drv.h"
 #include "hpm_mchtmr_drv.h"
 #include "hpm_l1c_drv.h"
 #include "hpm_soc.h"
+#include "hpm_spi_drv.h"
 #include "hpm_interrupt.h"
 #include <stddef.h>
 #include <string.h>
@@ -38,6 +40,9 @@
 #endif
 #if !defined(LV_USE_ST7789) || (LV_USE_ST7789 == 0)
 #error "LV_USE_ST7789 must be enabled in LVGL config when using the LVGL ST7789 driver."
+#endif
+#if !defined(LV_COLOR_16_SWAP) || (LV_COLOR_16_SWAP == 0)
+#error "LV_COLOR_16_SWAP must be enabled for SPI RGB565 panels (ST7789 expects MSB-first on the wire)."
 #endif
 #endif
 
@@ -629,7 +634,7 @@ void hpm_lvgl_spi_backlight(bool on)
 #endif
 }
 
-void hpm_lvgl_spi_set_rotation(uint8_t rotation)
+void hpm_lvgl_spi_set_rotation(uint16_t rotation)
 {
 #if HPM_LVGL_USE_LVGL_ST7789_DRIVER
     if (!lvgl_ctx.disp) {
@@ -653,7 +658,7 @@ void hpm_lvgl_spi_set_rotation(uint8_t rotation)
         break;
     }
 #else
-    st7789_set_rotation(rotation);
+    st7789_set_rotation((uint8_t)rotation);
 
     /* Update LVGL display size if rotated 90/270 */
     if (lvgl_ctx.disp) {

@@ -25,6 +25,13 @@
 #endif
 #define LV_COLOR_DEPTH 16
 
+/* ST7789 expects RGB565 to be sent MSB first (big-endian byte order on the wire).
+ * LVGL runs on a little-endian CPU, so enable the built-in RGB565 byte swap before flush. */
+#ifdef LV_COLOR_16_SWAP
+#undef LV_COLOR_16_SWAP
+#endif
+#define LV_COLOR_16_SWAP 1
+
 /* Reduce LVGL heap to fit small MCU RAM budgets. Adjust as needed for your UI. */
 #ifdef LV_MEM_SIZE
 #undef LV_MEM_SIZE
@@ -61,4 +68,3 @@
 #define LV_USE_GENERIC_MIPI 1
 
 #endif /* HPM_LVGL_SPI_LV_CONF_EXT_H */
-
