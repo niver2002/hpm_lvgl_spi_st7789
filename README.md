@@ -16,7 +16,7 @@ This driver uses SPI + DMA (DMAv2 on HPM6E) and is optimized for LVGL partial re
 
 ## Repository Layout
 
-- `src/`: driver + LVGL adapter (`st7789.*`, `hpm_lvgl_spi.*`, `lv_conf.h`)
+- `src/`: driver + LVGL adapter (`st7789.*`, `hpm_lvgl_spi.*`, `lv_conf_ext.h`)
 - `examples/`: demo apps (`tsn_dashboard`, `render_benchmark`)
 - `docs/`: wiring + porting notes
 
@@ -39,6 +39,10 @@ your_project/
 set(CONFIG_LVGL 1)
 set(CONFIG_LVGL_CUSTOM_PORTABLE 1)
 
+# Recommended (official) backend: HPM SDK SPI component + DMA manager
+set(CONFIG_HPM_SPI 1)
+set(CONFIG_DMA_MGR 1)
+
 find_package(hpm-sdk REQUIRED HINTS $ENV{HPM_SDK_BASE})
 
 set(LVGL_SPI_DISPLAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl_spi_display)
@@ -48,8 +52,8 @@ sdk_src(
   ${LVGL_SPI_DISPLAY_DIR}/hpm_lvgl_spi.c
 )
 
-# Use this repo's lv_conf.h (make sure lv_conf.h is in include path)
-sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG=\"lv_conf.h\")
+# Enable LVGL upstream ST7789 (generic MIPI) driver when using DMA manager backend
+sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG=\"lv_conf_ext.h\")
 ```
 
 3. Provide board definitions (`BOARD_LCD_*`) and pinmux/GPIO init.

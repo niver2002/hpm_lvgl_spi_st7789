@@ -185,6 +185,24 @@
 #define LV_USE_FS_WIN32 0
 #define LV_USE_FS_FATFS 0
 
+/*==================
+ * DISPLAY DRIVERS
+ *==================*/
+
+/* Enable LVGL's built-in ST7789 driver (Generic MIPI DBI/DCS).
+ * This matches the HPM SDK LVGL driver layout under:
+ * `middleware/lvgl/lvgl/src/drivers/display/st7789` */
+#ifdef LV_USE_ST7789
+#undef LV_USE_ST7789
+#endif
+#define LV_USE_ST7789 1
+
+/* Generic MIPI driver is required by LVGL ST7789 wrapper. */
+#ifdef LV_USE_GENERIC_MIPI
+#undef LV_USE_GENERIC_MIPI
+#endif
+#define LV_USE_GENERIC_MIPI 1
+
 /*===================
  * EXAMPLES
  *==================*/

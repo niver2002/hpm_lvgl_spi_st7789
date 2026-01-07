@@ -16,7 +16,7 @@
 
 ## 目录结构
 
-- `src/`：底层驱动 + LVGL 适配层（`st7789.*`, `hpm_lvgl_spi.*`, `lv_conf.h`）
+- `src/`：底层驱动 + LVGL 适配层（`st7789.*`, `hpm_lvgl_spi.*`, `lv_conf_ext.h`）
 - `examples/`：示例程序（`tsn_dashboard`, `render_benchmark`）
 - `docs/`：硬件连接与移植说明
 
@@ -39,6 +39,10 @@ your_project/
 set(CONFIG_LVGL 1)
 set(CONFIG_LVGL_CUSTOM_PORTABLE 1)
 
+# Recommended (official) backend: HPM SDK SPI component + DMA manager
+set(CONFIG_HPM_SPI 1)
+set(CONFIG_DMA_MGR 1)
+
 find_package(hpm-sdk REQUIRED HINTS $ENV{HPM_SDK_BASE})
 
 set(LVGL_SPI_DISPLAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/components/lvgl_spi_display)
@@ -48,7 +52,7 @@ sdk_src(
   ${LVGL_SPI_DISPLAY_DIR}/hpm_lvgl_spi.c
 )
 
-sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG=\"lv_conf.h\")
+sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG=\"lv_conf_ext.h\")
 ```
 
 3. 在你的板级工程中补齐 `BOARD_LCD_*` 宏定义，并完成 pinmux/GPIO 初始化。

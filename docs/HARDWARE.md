@@ -46,6 +46,13 @@ void init_lcd_pins(void)
 }
 ```
 
+## About CS (HW CS vs GPIO CS)
+
+- Many ST7789 modules allow tying `CS` low permanently (single device on bus).
+- If you use SPI hardware CS (e.g. `SPI7_CS0`), this repo can work without any extra macros.
+- If you want the driver to control CS as a normal GPIO (recommended when sharing the SPI bus),
+  define `BOARD_LCD_CS_INDEX/BOARD_LCD_CS_PIN` in your board and configure the pad as GPIO in pinmux.
+
 ## GPIO Init Example (board.c)
 
 ```c
@@ -86,4 +93,3 @@ Wrong colors:
 
 - Try toggling inversion (`invert_colors` / `st7789_invert(true/false)`)
 - Confirm color order setting (RGB/BGR)
-

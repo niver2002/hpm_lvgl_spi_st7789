@@ -9,6 +9,18 @@ The driver is split into two layers:
 1. `st7789.c/h`: low-level SPI + DMA driver (ST7789/GC9307)
 2. `hpm_lvgl_spi.c/h`: LVGL display adapter (flush callback, buffers, tick, stats)
 
+## Two Backends (Legacy vs Official)
+
+This repo supports two mutually exclusive backends:
+
+1. **Official (recommended)**: LVGL upstream `lv_st7789` (generic MIPI) + HPM SDK `components/spi` + `components/dma_mgr`
+   - Enabled automatically when the SDK defines `USE_DMA_MGR=1` (typically by setting `CONFIG_HPM_SPI=1` and `CONFIG_DMA_MGR=1` in CMake).
+   - DMA IRQs are owned by DMA manager (`IRQn_HDMA`/`IRQn_XDMA`), so this repo must not declare a competing DMA ISR.
+
+2. **Legacy**: local `src/st7789.c` driver using DMAv2 directly + custom LVGL flush callback
+   - Used when `USE_DMA_MGR=0` (default on older SDKs / when DMA manager is not enabled).
+   - Requires you to provide DMA request + IRQ macros (`BOARD_LCD_DMA_*`) and enable the DMA IRQ.
+
 ## Required Board Macros
 
 The LVGL adapter (`src/hpm_lvgl_spi.c`) reads board configuration from `board.h`.
@@ -38,6 +50,17 @@ All control pins are written through a single `GPIO_Type *` base:
 #define BOARD_LCD_BL_PIN            25
 ```
 
+### Optional: GPIO CS (only used by the Official backend)
+
+If you want this component to manually control chip-select via GPIO (useful when sharing the SPI bus), define:
+
+```c
+#define BOARD_LCD_CS_INDEX          GPIO_DO_GPIOF
+#define BOARD_LCD_CS_PIN            27
+/* Optional, default is active-low */
+#define BOARD_LCD_CS_ACTIVE_LEVEL   0
+```
+
 ### DMA (HPM6E00 / DMAv2)
 
 Defaults are provided in `src/hpm_lvgl_spi.c` for typical HPM6E00 setups, but you can override:
@@ -49,6 +72,38 @@ Defaults are provided in `src/hpm_lvgl_spi.c` for typical HPM6E00 setups, but yo
 #define BOARD_LCD_DMA_SRC           HPM_DMA_SRC_SPI7_TX
 #define BOARD_LCD_DMA_IRQ           IRQn_HDMA
 ```
+
+> Only required by the **Legacy** backend. The Official backend allocates DMA resources via DMA manager.
+
+## Enabling the Official Backend (HPM SDK SPI component + DMA manager)
+
+In your app `CMakeLists.txt` (before `find_package(hpm-sdk ...)`):
+
+```cmake
+set(CONFIG_HPM_SPI 1)
+set(CONFIG_DMA_MGR 1)
+```
+
+Enable LVGL drivers via extra config:
+
+```cmake
+sdk_compile_definitions(-DCONFIG_LV_HAS_EXTRA_CONFIG="lv_conf_ext.h")
+```
+
+The adapter will then use:
+
+- `lv_st7789_create(...)` (LVGL upstream ST7789 wrapper)
+- `hpm_spi_transmit_blocking(...)` for commands
+- `hpm_spi_transmit_nonblocking(...)` + DMA manager callback for pixel flush
+
+## Switching Backends Manually
+
+You can override the backend selection:
+
+- `HPM_LVGL_USE_LVGL_ST7789_DRIVER=1` forces Official backend
+- `HPM_LVGL_USE_LVGL_ST7789_DRIVER=0` forces Legacy backend
+
+Note: `USE_DMA_MGR=1` + Legacy backend is blocked at compile time to avoid DMA IRQ symbol conflicts.
 
 ## LVGL Tick Source
 

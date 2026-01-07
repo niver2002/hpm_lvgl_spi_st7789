@@ -68,3 +68,6 @@ LVGL 的 flush 回调里：
 - hpm_sdk（C）SPI DMA 示例（注意 `spi_is_active()` 的等待说明）：
   - https://github.com/hpmicro/hpm_sdk/tree/main/samples/spi_components
 
+## Official backend note
+
+If you enable HPM SDK `components/spi` + `dma_mgr` and use LVGL upstream `lv_st7789`, see `docs/OFFICIAL_HPM_SDK_BACKEND.md`.

@@ -10,7 +10,12 @@
 #define HPM_LVGL_SPI_H
 
 #include "lvgl.h"
-#include "st7789.h"
+
+/* If using the HPM SDK `components/spi` driver with DMA manager, the SDK will define `USE_DMA_MGR=1`.
+ * Provide a safe default for projects that don't enable DMA manager. */
+#ifndef USE_DMA_MGR
+#define USE_DMA_MGR 0
+#endif
 
 /*============================================================================
  * Configuration
@@ -46,6 +51,28 @@
 /* Partial refresh - key for 60FPS */
 #ifndef HPM_LVGL_USE_PARTIAL_REFRESH
 #define HPM_LVGL_USE_PARTIAL_REFRESH 1
+#endif
+
+/* Implementation selection:
+ * - 1: Use LVGL's built-in ST7789 (generic MIPI) driver + platform callbacks (recommended; matches HPM SDK upstream).
+ * - 0: Use legacy local `st7789.c` driver + custom flush callback.
+ */
+#ifndef HPM_LVGL_USE_LVGL_ST7789_DRIVER
+#define HPM_LVGL_USE_LVGL_ST7789_DRIVER USE_DMA_MGR
+#endif
+
+/* LVGL ST7789 (generic MIPI) configuration (only used when `HPM_LVGL_USE_LVGL_ST7789_DRIVER == 1`).
+ *
+ * `HPM_LVGL_LCD_FLAGS` maps to `lv_lcd_flag_t` (e.g. `LV_LCD_FLAG_BGR`, `LV_LCD_FLAG_MIRROR_X`).
+ * Default is `0` (no special flags).
+ */
+#ifndef HPM_LVGL_LCD_FLAGS
+#define HPM_LVGL_LCD_FLAGS 0
+#endif
+
+/* Many ST7789 panels require color inversion (INVON). */
+#ifndef HPM_LVGL_LCD_INVERT
+#define HPM_LVGL_LCD_INVERT 1
 #endif
 
 /* Buffer size for partial refresh
@@ -123,6 +150,7 @@ uint32_t hpm_lvgl_spi_get_fps(void);
 
 /**
  * @brief DMA IRQ handler - must be called from DMA ISR
+ * @note Not required when `USE_DMA_MGR == 1` (DMA manager installs and handles IRQs).
  */
 void hpm_lvgl_spi_dma_irq_handler(void);
 
