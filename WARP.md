@@ -10,6 +10,7 @@ Key files:
 
 - `src/st7789.c`: SPI + DMA driver (ST7789/GC9307)
 - `src/hpm_lvgl_spi.c`: LVGL adapter (flush callback, buffers, tick)
+- `docs/HPM6E_DMA_SPI_ST7789.md`: DMA-SPI deep dive notes (HPM6E)
 - `examples/`: demo applications
 
 ## Build (examples)
@@ -32,4 +33,3 @@ mkdir build && cd build
 cmake -GNinja -DBOARD=hpm6e00_full_port -DBOARD_SEARCH_PATH=<path-to-hpm_apps>/boards ..
 ninja
 ```
-

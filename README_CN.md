@@ -104,7 +104,8 @@ ninja
 
 本仓库 `src/st7789.c` 已按上述要点修正。
 
+更深入的原理说明与实现要点（DMA 完成 vs SPI 空闲、D-Cache 一致性等）：`docs/HPM6E_DMA_SPI_ST7789.md`。
+
 ## License
 
 BSD-3-Clause，详见 `LICENSE`。
-

@@ -70,6 +70,16 @@ static void st7789_delay_ms(uint32_t ms)
     board_delay_ms(ms);
 }
 
+static inline void st7789_spi_wait_transfer_done(SPI_Type *spi)
+{
+    /* FIFO empty does NOT always mean the shifter is done.
+     * Wait for both FIFO empty and SPI inactive. */
+    while (spi_get_tx_fifo_valid_data_size(spi) != 0U) {
+    }
+    while (spi_is_active(spi)) {
+    }
+}
+
 static void st7789_spi_write_byte(uint8_t data)
 {
     SPI_Type *spi = st7789_ctx.cfg.spi_base;
@@ -84,10 +94,7 @@ static void st7789_spi_write_byte(uint8_t data)
     spi->DATA = data;
     
     /* Wait for transfer complete (avoid missing a short SPIACTIVE pulse) */
-    while (spi_get_tx_fifo_valid_data_size(spi) != 0U) {
-    }
-    while (spi_is_active(spi)) {
-    }
+    st7789_spi_wait_transfer_done(spi);
 }
 
 static void st7789_spi_write_data(const uint8_t *data, uint32_t len)
@@ -108,10 +115,7 @@ static void st7789_spi_write_data(const uint8_t *data, uint32_t len)
     }
     
     /* Wait for all data sent */
-    while (spi_get_tx_fifo_valid_data_size(spi) != 0U) {
-    }
-    while (spi_is_active(spi)) {
-    }
+    st7789_spi_wait_transfer_done(spi);
 }
 
 static void st7789_write_cmd(uint8_t cmd)
@@ -132,11 +136,30 @@ static void st7789_write_data_buf(const uint8_t *data, uint32_t len)
     st7789_spi_write_data(data, len);
 }
 
+static void st7789_write_cmd_data_buf(uint8_t cmd, const uint8_t *data, uint32_t len)
+{
+    st7789_write_cmd(cmd);
+    if ((data != NULL) && (len != 0U)) {
+        st7789_write_data_buf(data, len);
+    }
+}
+
 /*============================================================================
  * Initialization sequences
  *============================================================================*/
 static void st7789_init_sequence(void)
 {
+    static const uint8_t porctrl[] = { 0x0C, 0x0C, 0x00, 0x33, 0x33 };
+    static const uint8_t pwctrl1[] = { 0xA4, 0xA1 };
+    static const uint8_t gamma_pos[] = {
+        0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F,
+        0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23
+    };
+    static const uint8_t gamma_neg[] = {
+        0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F,
+        0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23
+    };
+
     /* Software reset */
     st7789_write_cmd(ST7789_SWRESET);
     st7789_delay_ms(150);
@@ -146,73 +169,43 @@ static void st7789_init_sequence(void)
     st7789_delay_ms(120);
     
     /* Color mode - RGB565 */
-    st7789_write_cmd(ST7789_COLMOD);
-    st7789_write_data(0x55);  /* 16-bit color */
+    st7789_write_cmd_data_buf(ST7789_COLMOD, (const uint8_t[]){0x55}, 1); /* 16-bit color */
     
     /* Memory data access control */
-    st7789_write_cmd(ST7789_MADCTL);
-    st7789_write_data(0x00);
+    st7789_write_cmd_data_buf(ST7789_MADCTL, (const uint8_t[]){0x00}, 1);
     
     /* Porch control */
-    st7789_write_cmd(ST7789_PORCTRL);
-    st7789_write_data(0x0C);
-    st7789_write_data(0x0C);
-    st7789_write_data(0x00);
-    st7789_write_data(0x33);
-    st7789_write_data(0x33);
+    st7789_write_cmd_data_buf(ST7789_PORCTRL, porctrl, sizeof(porctrl));
     
     /* Gate control */
-    st7789_write_cmd(ST7789_GCTRL);
-    st7789_write_data(0x35);
+    st7789_write_cmd_data_buf(ST7789_GCTRL, (const uint8_t[]){0x35}, 1);
     
     /* VCOM setting */
-    st7789_write_cmd(ST7789_VCOMS);
-    st7789_write_data(0x19);
+    st7789_write_cmd_data_buf(ST7789_VCOMS, (const uint8_t[]){0x19}, 1);
     
     /* LCM control */
-    st7789_write_cmd(ST7789_LCMCTRL);
-    st7789_write_data(0x2C);
+    st7789_write_cmd_data_buf(ST7789_LCMCTRL, (const uint8_t[]){0x2C}, 1);
     
     /* VDV and VRH command enable */
-    st7789_write_cmd(ST7789_VDVVRHEN);
-    st7789_write_data(0x01);
+    st7789_write_cmd_data_buf(ST7789_VDVVRHEN, (const uint8_t[]){0x01}, 1);
     
     /* VRH set */
-    st7789_write_cmd(ST7789_VRHS);
-    st7789_write_data(0x12);
+    st7789_write_cmd_data_buf(ST7789_VRHS, (const uint8_t[]){0x12}, 1);
     
     /* VDV set */
-    st7789_write_cmd(ST7789_VDVS);
-    st7789_write_data(0x20);
+    st7789_write_cmd_data_buf(ST7789_VDVS, (const uint8_t[]){0x20}, 1);
     
     /* Frame rate control */
-    st7789_write_cmd(ST7789_FRCTRL2);
-    st7789_write_data(0x0F);  /* 60Hz */
+    st7789_write_cmd_data_buf(ST7789_FRCTRL2, (const uint8_t[]){0x0F}, 1);  /* 60Hz */
     
     /* Power control */
-    st7789_write_cmd(ST7789_PWCTRL1);
-    st7789_write_data(0xA4);
-    st7789_write_data(0xA1);
+    st7789_write_cmd_data_buf(ST7789_PWCTRL1, pwctrl1, sizeof(pwctrl1));
     
     /* Positive voltage gamma control */
-    st7789_write_cmd(ST7789_PVGAMCTRL);
-    {
-        uint8_t gamma_pos[] = {
-            0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F,
-            0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23
-        };
-        st7789_write_data_buf(gamma_pos, sizeof(gamma_pos));
-    }
+    st7789_write_cmd_data_buf(ST7789_PVGAMCTRL, gamma_pos, sizeof(gamma_pos));
     
     /* Negative voltage gamma control */
-    st7789_write_cmd(ST7789_NVGAMCTRL);
-    {
-        uint8_t gamma_neg[] = {
-            0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F,
-            0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23
-        };
-        st7789_write_data_buf(gamma_neg, sizeof(gamma_neg));
-    }
+    st7789_write_cmd_data_buf(ST7789_NVGAMCTRL, gamma_neg, sizeof(gamma_neg));
     
     /* Inversion on (most ST7789 displays need this) */
     if (st7789_ctx.cfg.invert_colors) {
@@ -408,18 +401,22 @@ void st7789_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
     uint16_t y_end = y1 + st7789_ctx.cfg.y_offset;
     
     /* Column address set */
-    st7789_write_cmd(ST7789_CASET);
-    st7789_write_data(x_start >> 8);
-    st7789_write_data(x_start & 0xFF);
-    st7789_write_data(x_end >> 8);
-    st7789_write_data(x_end & 0xFF);
+    const uint8_t caset[] = {
+        (uint8_t)(x_start >> 8),
+        (uint8_t)(x_start & 0xFF),
+        (uint8_t)(x_end >> 8),
+        (uint8_t)(x_end & 0xFF),
+    };
+    st7789_write_cmd_data_buf(ST7789_CASET, caset, sizeof(caset));
     
     /* Row address set */
-    st7789_write_cmd(ST7789_RASET);
-    st7789_write_data(y_start >> 8);
-    st7789_write_data(y_start & 0xFF);
-    st7789_write_data(y_end >> 8);
-    st7789_write_data(y_end & 0xFF);
+    const uint8_t raset[] = {
+        (uint8_t)(y_start >> 8),
+        (uint8_t)(y_start & 0xFF),
+        (uint8_t)(y_end >> 8),
+        (uint8_t)(y_end & 0xFF),
+    };
+    st7789_write_cmd_data_buf(ST7789_RASET, raset, sizeof(raset));
     
     /* Write to RAM */
     st7789_write_cmd(ST7789_RAMWR);
@@ -606,8 +603,7 @@ void st7789_dma_irq_handler(void)
 
     /* DMA TC only means FIFO writes are done; wait for SPI shifter to finish */
     if ((stat & DMA_CHANNEL_STATUS_TC) != 0U) {
-        while (spi_is_active(spi)) {
-        }
+        st7789_spi_wait_transfer_done(spi);
     }
 
     /* Stop DMA & mark idle */

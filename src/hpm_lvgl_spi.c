@@ -71,12 +71,10 @@
  *============================================================================*/
 
 /* Frame buffers - cache aligned */
-static uint8_t __attribute__((aligned(64), section(".noncacheable"))) 
-    lvgl_fb0[HPM_LVGL_FB_SIZE];
+static uint8_t HPM_LVGL_FB_ATTR lvgl_fb0[HPM_LVGL_FB_SIZE];
 
 #if HPM_LVGL_USE_DOUBLE_BUFFER
-static uint8_t __attribute__((aligned(64), section(".noncacheable"))) 
-    lvgl_fb1[HPM_LVGL_FB_SIZE];
+static uint8_t HPM_LVGL_FB_ATTR lvgl_fb1[HPM_LVGL_FB_SIZE];
 #endif
 
 /* LVGL context */
@@ -106,15 +104,24 @@ static uint32_t mchtmr_freq_khz = 0;
 
 static uint32_t lvgl_tick_get_cb(void)
 {
+#if HPM_LVGL_TICK_SOURCE_MCHTMR
     if (mchtmr_freq_khz == 0) {
         mchtmr_freq_khz = clock_get_frequency(clock_mchtmr0) / 1000;
     }
     return (uint32_t)(mchtmr_get_count(HPM_MCHTMR) / mchtmr_freq_khz);
+#else
+    return lvgl_ctx.tick_ms;
+#endif
 }
 
 void hpm_lvgl_spi_tick_inc(uint32_t ms)
 {
+#if HPM_LVGL_TICK_SOURCE_MCHTMR
+    /* Using hardware tick source; nothing to do. */
+    (void)ms;
+#else
     lvgl_ctx.tick_ms += ms;
+#endif
 }
 
 uint32_t hpm_lvgl_spi_tick_get(void)

@@ -107,7 +107,8 @@ If LVGL appears to "hang" during the first flush on HPM6E:
 
 See `src/st7789.c` for the fixed implementation.
 
+Deep-dive notes (DMA completion vs SPI idle, cache coherency, etc.): `docs/HPM6E_DMA_SPI_ST7789.md`.
+
 ## License
 
 BSD-3-Clause. See `LICENSE`.
-

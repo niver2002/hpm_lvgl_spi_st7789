@@ -138,7 +138,7 @@ typedef struct {
     /* SPI configuration */
     SPI_Type *spi_base;
     uint32_t spi_clk_name;
-    uint32_t spi_freq_hz;           /* Target SPI frequency (max 62.5MHz) */
+    uint32_t spi_freq_hz;           /* Target SPI frequency (check panel + signal integrity) */
     
     /* DMA configuration */
     DMA_Type *dma_base;
@@ -208,6 +208,9 @@ void st7789_write_pixels(const uint16_t *data, uint32_t pixel_count);
  * @param len Length in bytes
  * @param callback Function to call when DMA completes
  * @param user_data User data passed to callback
+ * @note DMA terminal-count does not necessarily mean the SPI bus has finished shifting out
+ *       the last bits. This driver waits for SPI to become idle (spi_is_active == false)
+ *       before invoking the callback.
  * @return status_success if DMA transfer started
  */
 hpm_stat_t st7789_write_pixels_dma(const void *data, uint32_t byte_len, 

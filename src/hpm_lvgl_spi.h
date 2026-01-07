@@ -35,6 +35,14 @@
 #define HPM_LVGL_USE_DOUBLE_BUFFER  1           /* Enable double buffering */
 #endif
 
+/* Tick source:
+ * - 1: Use MCHTMR (hardware timer) as LVGL tick source (recommended on HPM6E).
+ * - 0: Use a software counter; user must call hpm_lvgl_spi_tick_inc().
+ */
+#ifndef HPM_LVGL_TICK_SOURCE_MCHTMR
+#define HPM_LVGL_TICK_SOURCE_MCHTMR 1
+#endif
+
 /* Partial refresh - key for 60FPS */
 #ifndef HPM_LVGL_USE_PARTIAL_REFRESH
 #define HPM_LVGL_USE_PARTIAL_REFRESH 1
@@ -49,6 +57,15 @@
 #define HPM_LVGL_PIXEL_SIZE     (LV_COLOR_DEPTH / 8)
 #define HPM_LVGL_FB_LINES       80      /* 1/4 screen height */
 #define HPM_LVGL_FB_SIZE        (HPM_LVGL_LCD_WIDTH * HPM_LVGL_FB_LINES * HPM_LVGL_PIXEL_SIZE)
+
+/* DMA/LVGL draw buffers should be cache-safe. By default we place buffers into
+ * a non-cacheable section and align to 64 bytes (HPM6E D-Cache line size).
+ *
+ * You can override this macro to match your linker script / toolchain.
+ */
+#ifndef HPM_LVGL_FB_ATTR
+#define HPM_LVGL_FB_ATTR __attribute__((aligned(64), section(".noncacheable")))
+#endif
 
 /*============================================================================
  * API Functions
@@ -75,7 +92,8 @@ lv_display_t *hpm_lvgl_spi_get_display(void);
 
 /**
  * @brief LVGL tick handler - call this from timer interrupt or main loop
- * @note Call at least every 1-5ms for smooth animations
+ * @note Only required when `HPM_LVGL_TICK_SOURCE_MCHTMR == 0`.
+ *       When using MCHTMR tick source, this function is a no-op.
  */
 void hpm_lvgl_spi_tick_inc(uint32_t ms);
 

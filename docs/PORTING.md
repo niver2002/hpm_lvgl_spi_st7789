@@ -50,6 +50,21 @@ Defaults are provided in `src/hpm_lvgl_spi.c` for typical HPM6E00 setups, but yo
 #define BOARD_LCD_DMA_IRQ           IRQn_HDMA
 ```
 
+## LVGL Tick Source
+
+By default this component uses `MCHTMR` as the LVGL tick source (no periodic `lv_tick_inc()` needed):
+
+- `HPM_LVGL_TICK_SOURCE_MCHTMR = 1` (default): `hpm_lvgl_spi_tick_inc()` is a no-op.
+- `HPM_LVGL_TICK_SOURCE_MCHTMR = 0`: you must call `hpm_lvgl_spi_tick_inc(ms)` periodically (timer ISR or main loop).
+
+## Framebuffer Placement (Cache vs DMA)
+
+SPI TX DMA reads the draw buffer from memory. If the buffer is in cacheable RAM you must ensure cache coherency.
+This repo defaults to allocating LVGL draw buffers in a non-cacheable section:
+
+- `HPM_LVGL_FB_ATTR` defaults to `__attribute__((aligned(64), section(".noncacheable")))`
+- You can override `HPM_LVGL_FB_ATTR` to match your linker script / toolchain.
+
 ## Pinmux Checklist
 
 You must configure:
@@ -91,4 +106,3 @@ If you port to a non-DMAv2 SoC, re-check:
 - DMA request source (`HPM_DMA_SRC_SPIx_TX`)
 - DMA driver API differences
 - Cache maintenance requirements (if buffers are cacheable)
-
