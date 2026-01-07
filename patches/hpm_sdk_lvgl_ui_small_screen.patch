@@ -1,0 +1,150 @@
+diff --git a/samples/lvgl/common/lvgl.c b/samples/lvgl/common/lvgl.c
+index 7b10f36..b1d90d5 100644
+--- a/samples/lvgl/common/lvgl.c
++++ b/samples/lvgl/common/lvgl.c
+@@ -52,6 +52,8 @@ static void hpm_lvgl_add_logo(void)
+     int screen_w;
+     int logo_size;
+     lv_obj_t *obj_logo;
++    int pad_top;
++    bool narrow;
+ 
+     screen = lv_screen_active();
+     screen_h = lv_obj_get_height(screen);
+@@ -59,6 +61,8 @@ static void hpm_lvgl_add_logo(void)
+ 
+     if (screen_h < screen_w)
+         logo_size = screen_h * 30 / 100;
++    narrow = (screen_w < 240);
++    pad_top = narrow ? 4 : 8;
+     else
+         logo_size = screen_w * 30 / 100;
+ 
+@@ -69,7 +73,7 @@ static void hpm_lvgl_add_logo(void)
+ 
+     lv_obj_set_size(obj_logo, logo_size, logo_size);
+     lv_image_set_src(obj_logo, &hpmlogo);
+-    lv_obj_set_align(obj_logo, LV_ALIGN_TOP_LEFT);
++    lv_obj_set_align(obj_logo, narrow ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT);
+     lv_image_set_inner_align(obj_logo, LV_IMAGE_ALIGN_STRETCH);
+ 
+     def_color = lv_obj_get_style_bg_color(screen, LV_PART_MAIN);
+@@ -77,6 +81,7 @@ static void hpm_lvgl_add_logo(void)
+ }
+ 
+ static void btn_event_cb(lv_event_t *e)
+@@ -94,50 +99,63 @@ static void btn_event_cb(lv_event_t *e)
+     }
+ }
+ 
+ static void hpm_lvgl_add_button(void)
+ {
+     lv_obj_t *obj_button;
+     lv_obj_t *obj_text;
+-    lv_obj_t *obj_grid;
+-    static int32_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+-    static int32_t row_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
++    lv_obj_t *obj_menu;
+     static lv_style_t style_btn;
++    lv_obj_t *screen;
++    int screen_w;
++    int screen_h;
++    bool narrow;
++    uint32_t btn_h;
+ 
+     lv_style_init(&style_btn);
+     lv_style_set_bg_color(&style_btn, lv_color_hex(0x0));
+     lv_style_set_bg_opa(&style_btn, LV_OPA_TRANSP);
+     lv_style_set_border_width(&style_btn, 2);
+     lv_style_set_border_color(&style_btn, lv_color_hex(0xFFFFFF));
+     lv_style_set_radius(&style_btn, LV_RADIUS_CIRCLE);
+ 
+-    obj_grid = lv_obj_create(lv_screen_active());
+-    lv_obj_remove_style_all(obj_grid);
+-    lv_obj_set_layout(obj_grid, LV_LAYOUT_GRID);
+-    lv_obj_set_size(obj_grid, lv_pct(100), lv_pct(30));
+-    lv_obj_center(obj_grid);
+-    lv_obj_set_grid_dsc_array(obj_grid, col_dsc, row_dsc);
++    screen = lv_screen_active();
++    screen_h = lv_obj_get_height(screen);
++    screen_w = lv_obj_get_width(screen);
++    narrow = (screen_w < 240);
++    btn_h = narrow ? 44 : (screen_h < 240 ? 40 : 48);
++
++    obj_menu = lv_obj_create(screen);
++    lv_obj_remove_style_all(obj_menu);
++    lv_obj_set_layout(obj_menu, LV_LAYOUT_FLEX);
++    lv_obj_set_size(obj_menu, lv_pct(100), lv_pct(60));
++    lv_obj_align(obj_menu, LV_ALIGN_BOTTOM_MID, 0, 0);
++    if (narrow) {
++        lv_obj_set_flex_flow(obj_menu, LV_FLEX_FLOW_COLUMN);
++        lv_obj_set_flex_align(obj_menu, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
++    } else {
++        lv_obj_set_flex_flow(obj_menu, LV_FLEX_FLOW_ROW_WRAP);
++        lv_obj_set_flex_align(obj_menu, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
++    }
++    lv_obj_set_style_pad_row(obj_menu, 8, 0);
++    lv_obj_set_style_pad_column(obj_menu, 8, 0);
++    lv_obj_set_style_pad_all(obj_menu, 8, 0);
+ 
+     for (int i = 0; i < sizeof(demo_infos) / sizeof(demo_infos[0]); i++) {
+-        obj_button = lv_button_create(obj_grid);
++        obj_button = lv_button_create(obj_menu);
+         lv_obj_set_user_data(obj_button, &demo_infos[i]);
+         lv_obj_add_style(obj_button, &style_btn, 0);
+         lv_obj_add_event_cb(obj_button, btn_event_cb, LV_EVENT_ALL, NULL);
+-        lv_obj_set_grid_cell(obj_button, LV_GRID_ALIGN_CENTER, i, 1,
+-                             LV_GRID_ALIGN_CENTER, 0, 1);
++        if (narrow) {
++            lv_obj_set_width(obj_button, lv_pct(92));
++        } else {
++            lv_obj_set_width(obj_button, lv_pct(45));
++        }
++        lv_obj_set_height(obj_button, btn_h);
+ 
+         obj_text = lv_label_create(obj_button);
+         lv_label_set_text(obj_text, demo_infos[i].name);
+         lv_obj_set_size(obj_text, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+         lv_obj_center(obj_text);
+     }
+ }
+diff --git a/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c b/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
+index 0f6f6b0..b7e5b29 100644
+--- a/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
++++ b/samples/lvgl/lvgl_indev_usb_keyboard_mouse/src/main.c
+@@ -19,24 +19,43 @@
+ 
+ static void hpm_lvgl_mouse_keyboard_demo(lv_indev_t *indev)
+ {
+-    lv_obj_t *scr = lv_scr_act();
++    lv_obj_t *scr = lv_screen_active();
++    int32_t screen_w = lv_obj_get_width(scr);
++    bool narrow = (screen_w < 240);
+ 
+     /* Create a label for title */
+     lv_obj_t *label = lv_label_create(scr);
+-    lv_label_set_text(label, "USB Keyboard & Mouse Interaction Test");
+-    lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+-    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);
++    lv_label_set_text(label, "USB Keyboard & Mouse Test");
++    lv_obj_set_style_text_font(label, narrow ? &lv_font_montserrat_14 : &lv_font_montserrat_20, 0);
++    lv_obj_set_width(label, lv_pct(100));
++    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
++    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
++    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, narrow ? 8 : 20);
+ 
+     /* Create the textarea */
+     lv_obj_t *ta = lv_textarea_create(scr);
+     lv_textarea_set_one_line(ta, true);
+-    lv_obj_set_size(ta, 200, 50);
+-    lv_obj_align(ta, LV_ALIGN_CENTER, 0, -30);
++    lv_obj_set_width(ta, lv_pct(90));
++    lv_obj_set_height(ta, narrow ? 36 : 50);
++    lv_obj_align(ta, LV_ALIGN_CENTER, 0, 0);
+ 
+     /* Setup input group */
+     lv_group_t *group = lv_group_create();
+     lv_indev_set_group(indev, group);
+     lv_group_add_obj(group, ta);
+ }
+

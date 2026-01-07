@@ -98,6 +98,18 @@ cmake -GNinja -DBOARD=hpm6e00_full_port -DBOARD_SEARCH_PATH=<hpm_apps路径>/boa
 ninja
 ```
 
+### LVGL demos 菜单（更适合小屏）
+
+该示例提供一个响应式的 demo 启动菜单（参考 HPM SDK 的 `samples/lvgl/common/lvgl.c` 思路），
+对 172x320 这类窄屏更友好：
+
+```bash
+cd examples/lvgl_demos_menu
+mkdir build && cd build
+cmake -GNinja -DBOARD=hpm6e00_full_port -DBOARD_SEARCH_PATH=<hpm_apps路径>/boards ..
+ninja
+```
+
 ## 常见问题（HPM6E / DMAv2）
 
 如果在 HPM6E 上 LVGL 初始化后第一次 flush “卡死/不返回”，通常是 DMA 中断或 DMAv2 状态判断不正确导致：

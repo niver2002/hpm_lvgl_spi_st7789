@@ -100,6 +100,18 @@ cmake -GNinja -DBOARD=hpm6e00_full_port -DBOARD_SEARCH_PATH=<path-to-hpm_apps>/b
 ninja
 ```
 
+### LVGL demos menu (small-screen friendly)
+
+This example provides a responsive demo launcher UI (inspired by HPM SDK `samples/lvgl/common/lvgl.c`),
+and works well on narrow screens such as 172x320:
+
+```bash
+cd examples/lvgl_demos_menu
+mkdir build && cd build
+cmake -GNinja -DBOARD=hpm6e00_full_port -DBOARD_SEARCH_PATH=<path-to-hpm_apps>/boards ..
+ninja
+```
+
 ## Troubleshooting (HPM6E / DMAv2)
 
 If LVGL appears to "hang" during the first flush on HPM6E:
